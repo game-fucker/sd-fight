@@ -1,77 +1,113 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-
-namespace sd_fight
+﻿namespace sd_fight
 {
     /// <summary>
     /// MainWindow.xaml 的交互逻辑
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : System.Windows.Window
     {
-        private System.Windows.Controls.Canvas cv;
-        private UIElement[] imgs;
-        private UIElement bg;
+        private const int WindowWidth = 410;
+        private const int WindowHeight = 335;
+        private const int RefreshFrameDuration = 16;
+
+        private System.Windows.Controls.Canvas canvas;
+        private System.Windows.UIElement[] imgs;
+        private System.Windows.UIElement bg;
         private double bgLeft;
-        private bool pressLeft;
-        private bool pressRight;
+        private KeyListener KeyListener;
+        private Guy guy;
 
         public MainWindow()
         {
             InitializeComponent();
-            InitSize();
+            InitWindow();
+            KeyListener = new KeyListener();
+            guy = new Guy(this, KeyListener, WindowWidth, WindowHeight);
 
-            UIElement img1 = LoadImage("image/1.png");
-            Canvas.SetLeft(img1, 180);
-            Canvas.SetTop(img1, 180);
+            /*
+            System.Windows.UIElement img1 = Utils.LoadImage("image/1.png");
+            System.Windows.Controls.Canvas.SetLeft(img1, 180);
+            System.Windows.Controls.Canvas.SetTop(img1, 180);
 
-            UIElement img2 = LoadImage("image/2.png");
-            Canvas.SetLeft(img2, 180 + 20);
-            Canvas.SetTop(img2, 180);
+            System.Windows.UIElement img2 = Utils.LoadImage("image/2.png");
+            System.Windows.Controls.Canvas.SetLeft(img2, 180 + 20);
+            System.Windows.Controls.Canvas.SetTop(img2, 180);
 
-            UIElement img3 = LoadImage("image/3.png");
-            Canvas.SetLeft(img3, 180);
-            Canvas.SetTop(img3, 180);
+            System.Windows.UIElement img3 = Utils.LoadImage("image/3.png");
+            System.Windows.Controls.Canvas.SetLeft(img3, 180);
+            System.Windows.Controls.Canvas.SetTop(img3, 180);
 
-            UIElement img4 = LoadImage("image/4.png");
-            Canvas.SetLeft(img4, 180 - 20);
-            Canvas.SetTop(img4, 180);
+            System.Windows.UIElement img4 = Utils.LoadImage("image/4.png");
+            System.Windows.Controls.Canvas.SetLeft(img4, 180 - 20);
+            System.Windows.Controls.Canvas.SetTop(img4, 180);
 
-            imgs = new UIElement[4];
+            imgs = new System.Windows.UIElement[4];
             imgs[0] = img1;
             imgs[1] = img2;
             imgs[2] = img3;
             imgs[3] = img4;
-
-            bg = LoadImage("image/m1.jpg");
+            */
+            bg = Utils.LoadImage("image/chapter/2.jpg");
             bgLeft = 0;
 
-            cv = new System.Windows.Controls.Canvas();
-            cv.Children.Add(bg);
-            this.Content = cv;
+            canvas = new System.Windows.Controls.Canvas();
+            canvas.Children.Add(bg);
+            this.Content = canvas;
 
-            this.KeyDown += MoveBG;
-            this.KeyUp += StopMoveBG;
-            this.Closing += Window_Closing;
+            this.KeyDown += OnKeyDown;
+            this.KeyUp += OnKeyUp;
+            this.Closing += WindowClosing;
 
-            new System.Threading.Thread(PlaySkill).Start();
+            guy.Run();
+            //new System.Threading.Thread(PlaySkill).Start();
             new System.Threading.Thread(KeepOnMoveBG).Start();
         }
 
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void WindowClosing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            // 原谅我吧，懒得一个个地Dispose，就把这项艰巨的任务交给操作系统了
             System.Environment.Exit(0);
+        }
+
+        public void DoAction(System.Action action)
+        {
+            try
+            {
+                this.Dispatcher.Invoke(action);
+            }
+            catch (System.Exception e)
+            {
+                Utils.WriteLog(e.Message);
+            }
+        }
+
+        public void AddUIElement(System.Windows.UIElement ui)
+        {
+            try
+            {
+                this.Dispatcher.Invoke(new System.Action(() =>
+                {
+                    this.canvas.Children.Add(ui);
+                }));
+            }
+            catch (System.Exception e)
+            {
+                Utils.WriteLog(e.Message);
+            }
+        }
+
+        public void RemoveUIElement(System.Windows.UIElement ui)
+        {
+            try
+            {
+                this.Dispatcher.Invoke(new System.Action(() =>
+                {
+                    this.canvas.Children.Remove(ui);
+                }));
+            }
+            catch (System.Exception e)
+            {
+                Utils.WriteLog(e.Message);
+            }
         }
 
         public void PlaySkill()
@@ -82,61 +118,46 @@ namespace sd_fight
                 {
                     this.Dispatcher.Invoke(new System.Action(() =>
                     {
-                        cv.Children.Add(imgs[i % imgs.Length]);
+                        canvas.Children.Add(imgs[i % imgs.Length]);
                     }));
                     System.Threading.Thread.Sleep(30);
                     this.Dispatcher.Invoke(new System.Action(() =>
                     {
-                        cv.Children.Remove(imgs[i % imgs.Length]);
+                        canvas.Children.Remove(imgs[i % imgs.Length]);
                     }));
                 }
-                catch (Exception)
+                catch (System.Exception e)
                 {
-                    //MessageBox.Show(e.Message);
+                    Utils.WriteLog(e.Message);
                     break;
                 }
             }
         }
 
-        private void MoveBG(object sender, KeyEventArgs e)
+        private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            Console.WriteLine(e.Key.ToString());
-            if (e.Key == Key.D)
-            {
-                pressRight = true;
-            }
-            else if (e.Key == Key.A)
-            {
-                pressLeft = true;
-            }
+            KeyListener.OnKeyDown(e.Key);
         }
 
-        private void StopMoveBG(object sender, KeyEventArgs e)
+        private void OnKeyUp(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            if (e.Key == Key.D)
-            {
-                pressRight = false;
-            }
-            else if (e.Key == Key.A)
-            {
-                pressLeft = false;
-            }
+            KeyListener.OnKeyUp(e.Key);
         }
-
+        
         private void KeepOnMoveBG()
         {
             for (; ; )
             {
                 int dir = 0;
-                if (pressLeft && pressRight)
+                if (KeyListener.IsPressingLeft && KeyListener.IsPressingRight)
                 {
                     dir = 0;
                 }
-                else if (pressLeft)
+                else if (KeyListener.IsPressingLeft)
                 {
                     dir = -1;
                 }
-                else if (pressRight)
+                else if (KeyListener.IsPressingRight)
                 {
                     dir = 1;
                 }
@@ -145,56 +166,20 @@ namespace sd_fight
                     bgLeft -= 1 * dir;
                     this.Dispatcher.Invoke(new System.Action(() =>
                     {
-                        Canvas.SetLeft(bg, bgLeft);
+                        System.Windows.Controls.Canvas.SetLeft(bg, bgLeft);
                     }));
                 }
-                System.Threading.Thread.Sleep(5);
+                System.Threading.Thread.Sleep(RefreshFrameDuration);
             }
         }
 
-        private void InitSize()
+        private void InitWindow()
         {
             this.Title = "SD Fight";
-            this.Icon = LoadImageSource("image/icon.png");
-            this.Width = 410;
-            this.Height = 335;
-            this.ResizeMode = ResizeMode.NoResize;
-        }
-
-        private Image LoadImage(string uri)
-        {
-            System.Windows.Controls.Image img = new Image();
-            img.Stretch = System.Windows.Media.Stretch.Fill;
-            img.Source = LoadImageSource(uri);
-
-            return img;
-        }
-
-        private BitmapImage LoadImageSource(string uri)
-        {
-            System.Windows.Media.Imaging.BitmapImage bi = new BitmapImage();
-            bi.BeginInit();
-            bi.StreamSource = GetStreamFromFile(uri);
-            bi.EndInit();
-            return bi;
-        }
-
-        private System.IO.Stream GetStreamFromFile(string uri)
-        {
-            try
-            {
-                System.IO.FileStream fs = new System.IO.FileStream(uri, System.IO.FileMode.Open, System.IO.FileAccess.Read);
-                byte[] buf = new byte[fs.Length];
-                fs.Read(buf, 0, (int)fs.Length);
-                System.IO.MemoryStream ms = new System.IO.MemoryStream(buf);
-                return ms;
-            }
-            catch (Exception e)
-            {
-                MessageBox.Show(e.Message);
-                System.Environment.Exit(0);
-            }
-            return null;
+            this.Icon = Utils.LoadImageSource("image/icon.png");
+            this.Width = WindowWidth;
+            this.Height = WindowHeight;
+            this.ResizeMode = System.Windows.ResizeMode.NoResize;
         }
     }
 }
